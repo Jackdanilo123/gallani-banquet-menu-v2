@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gallani Suites — Banquet Menu</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<!-- Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root {
+  --navy: #0d1f3c;
+  --gold: #b8923a;
+  --gold-light: #d4aa5a;
+  --gold-pale: #f5e9d0;
+  --cream: #faf7f2;
+  --white: #ffffff;
+  --text: #1a1a2e;
+  --muted: #6b6b7a;
+  --border: #e2d5bf;
+  --edit-bg: rgba(184,146,58,0.07);
+  --edit-border: #b8923a;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Inter',sans-serif; background:var(--cream); color:var(--text); font-size:14px; line-height:1.6; }
+
+/* ── TOOLBAR ── */
+.toolbar {
+  position: sticky; top: 0; z-index: 200;
+  background: var(--navy);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 20px; gap: 12px; flex-wrap: wrap;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+.toolbar-left { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.toolbar-right { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
+.tb-btn {
+  padding: 8px 16px;
+  border: 1.5px solid var(--gold);
+  background: transparent;
+  color: var(--gold-light);
+  font-family:'Inter',sans-serif;
+  font-size:11px; font-weight:600;
+  letter-spacing:1px; text-transform:uppercase;
+  cursor:pointer; border-radius:2px;
+  transition: all 0.2s;
+  display:flex; align-items:center; gap:6px;
+}
+.tb-btn:hover { background:var(--gold); color:var(--white); }
+.tb-btn.active-edit { background:var(--gold); color:var(--white); }
+
+/* Export Dropdown */
+.export-wrap { position:relative; }
+.export-btn {
+  padding: 8px 16px;
+  background: var(--gold);
+  color: var(--white);
+  border: none;
+  font-family:'Inter',sans-serif;
+  font-size:11px; font-weight:600;
+  letter-spacing:1px; text-transform:uppercase;
+  cursor:pointer; border-radius:2px;
+  display:flex; align-items:center; gap:8px;
+  transition: background 0.2s;
+}
+.export-btn:hover { background:var(--gold-light); }
+.export-btn .arrow { font-size:9px; transition:transform 0.2s; }
+.export-btn.open .arrow { transform:rotate(180deg); }
+.export-menu {
+  display:none;
+  position:absolute; top:calc(100% + 6px); right:0;
+  background:var(--white);
+  border:1px solid var(--border);
+  min-width:200px;
+  box-shadow:0 8px 24px rgba(0,0,0,0.15);
+  z-index:300;
+  border-radius:2px;
+  overflow:hidden;
+}
+.export-menu.open { display:block; }
+.export-menu button {
+  display:flex; align-items:center; gap:10px;
+  width:100%; padding:11px 16px;
+  background:none; border:none; border-bottom:1px solid var(--border);
+  font-family:'Inter',sans-serif; font-size:12px;
+  color:var(--text); cursor:pointer; text-align:left;
+  transition:background 0.15s;
+}
+.export-menu button:last-child { border-bottom:none; }
+.export-menu button:hover { background:var(--gold-pale); color:var(--navy); }
+.export-menu button .fmt-icon { font-size:16px; width:20px; }
+.export-menu button .fmt-label { font-weight:600; font-size:11px; letter-spacing:0.5px; }
+.export-menu button .fmt-desc { font-size:10px; color:var(--muted); }
+
+.toolbar-label { color:rgba(255,255,255,0.5); font-size:11px; letter-spacing:1px; }
+
+/* ── EDIT MODE ── */
+body.edit-mode [contenteditable] {
+  outline: none;
+  background: var(--edit-bg);
+  border-bottom: 1.5px dashed var(--edit-border);
+  cursor: text;
+  border-radius: 2px;
+  padding: 0 3px;
+  min-width: 20px;
+  display: inline-block;
+}
+body.edit-mode [contenteditable]:focus {
+  background: rgba(184,146,58,0.15);
+  border-bottom-color: var(--navy);
+  box-shadow: 0 2px 0 var(--gold);
+}
+body.edit-mode .edit-hint {
+  display:block;
+}
+.edit-hint {
+  display:none;
+  text-align:center;
+  background:rgba(184,146,58,0.12);
+  border:1px dashed var(--gold);
+  color:var(--navy);
+  font-size:11px;
+  padding:6px 12px;
+  margin-bottom:12px;
+  border-radius:2px;
+  letter-spacing:0.5px;
+}
+
+/* ── HEADER ── */
+header {
+  background:var(--navy); color:var(--white);
+  text-align:center; padding:48px 24px 36px;
+  position:relative; overflow:hidden;
+}
+header::before {
+  content:''; position:absolute; inset:0;
+  background:repeating-linear-gradient(45deg,transparent,transparent 40px,rgba(184,146,58,0.04) 40px,rgba(184,146,58,0.04) 41px);
+}
+.header-inner { position:relative; z-index:1; }
+.gold-rule { width:60px; height:2px; background:var(--gold); margin:12px auto; }
+header .hotel-name {
+  font-family:'Cormorant Garamond',serif; font-size:13px;
+  letter-spacing:4px; text-transform:uppercase;
+  color:var(--gold-light); font-weight:300;
+}
+header h1 {
+  font-family:'Cormorant Garamond',serif;
+  font-size:clamp(36px,6vw,56px); font-weight:300;
+  letter-spacing:2px; margin:8px 0 4px; line-height:1.1;
+}
+header .tagline {
+  font-size:12px; color:rgba(255,255,255,0.55);
+  letter-spacing:2px; text-transform:uppercase; margin-top:6px;
+}
+
+/* ── NOTICE ── */
+.notice {
+  background:var(--gold-pale); border-left:4px solid var(--gold);
+  padding:14px 24px; text-align:center;
+  font-size:13px; color:var(--navy); font-style:italic;
+}
+.notice strong { font-style:normal; font-weight:600; }
+
+/* ── TABS ── */
+.tabs {
+  display:flex; background:var(--white);
+  border-bottom:2px solid var(--border);
+  overflow-x:auto; position:sticky; top:52px; z-index:100;
+  box-shadow:0 2px 8px rgba(0,0,0,0.06);
+}
+.tab-btn {
+  flex:1; min-width:110px; padding:14px 10px;
+  background:none; border:none; border-bottom:3px solid transparent;
+  cursor:pointer; font-family:'Inter',sans-serif;
+  font-size:12px; font-weight:500; letter-spacing:1px;
+  text-transform:uppercase; color:var(--muted);
+  transition:all 0.2s; white-space:nowrap;
+}
+.tab-btn:hover { color:var(--navy); background:var(--cream); }
+.tab-btn.active { color:var(--gold); border-bottom-color:var(--gold); background:var(--cream); }
+
+/* ── MAIN ── */
+main { max-width:1100px; margin:0 auto; padding:40px 20px 80px; }
+.section { display:none; }
+.section.active { display:block; }
+
+/* ── SECTION HEADER ── */
+.section-header { text-align:center; margin-bottom:40px; }
+.section-header .eyebrow {
+  font-size:11px; letter-spacing:3px; text-transform:uppercase;
+  color:var(--gold); font-weight:500;
+}
+.section-header h2 {
+  font-family:'Cormorant Garamond',serif; font-size:36px;
+  font-weight:300; color:var(--navy); margin:6px 0 12px;
+}
+.section-header p { color:var(--muted); font-size:13px; max-width:520px; margin:0 auto; }
+
+/* ── PACKAGES GRID ── */
+.packages-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:24px; }
+
+/* ── PACKAGE CARD ── */
+.pkg-card {
+  background:var(--white); border:1px solid var(--border);
+  border-radius:2px; overflow:hidden;
+  display:flex; flex-direction:column; transition:box-shadow 0.2s;
+}
+.pkg-card:hover { box-shadow:0 8px 32px rgba(13,31,60,0.1); }
+.pkg-card.featured { border-color:var(--gold); position:relative; }
+.pkg-card.featured::after {
+  content:'MOST POPULAR'; position:absolute; top:16px; right:-28px;
+  background:var(--gold); color:var(--white); font-size:9px;
+  font-weight:600; letter-spacing:1.5px; padding:4px 36px;
+  transform:rotate(45deg);
+}
+.pkg-header {
+  background:var(--navy); color:var(--white);
+  padding:24px 20px 20px; text-align:center;
+}
+.pkg-header .tier {
+  font-size:10px; letter-spacing:3px; text-transform:uppercase;
+  color:var(--gold-light); font-weight:500;
+}
+.pkg-header h3 {
+  font-family:'Cormorant Garamond',serif; font-size:28px;
+  font-weight:300; letter-spacing:1px; margin:4px 0 12px;
+}
+.price-badge {
+  display:inline-block; background:var(--gold); color:var(--white);
+  font-size:18px; font-weight:600; padding:6px 20px; border-radius:1px;
+}
+.price-note { font-size:11px; color:rgba(255,255,255,0.5); margin-top:6px; }
+.pkg-body { padding:20px; flex:1; }
+.course-block { margin-bottom:18px; }
+.course-label {
+  font-size:10px; font-weight:600; letter-spacing:2px;
+  text-transform:uppercase; color:var(--gold);
+  border-bottom:1px solid var(--border);
+  padding-bottom:5px; margin-bottom:8px;
+}
+.course-block ul { list-style:none; }
+.course-block ul li {
+  font-size:13px; color:var(--text);
+  padding:3px 0 3px 14px; position:relative; line-height:1.5;
+}
+.course-block ul li::before {
+  content:'›'; position:absolute; left:0;
+  color:var(--gold); font-weight:bold;
+}
+.course-block .sub-note {
+  font-size:12px; color:var(--muted); font-style:italic;
+  margin-top:4px; padding-left:14px;
+}
+.choice-count {
+  display:inline-block; background:var(--gold-pale); color:var(--navy);
+  font-size:10px; font-weight:600; padding:1px 6px;
+  border-radius:10px; margin-right:4px;
+}
+.pkg-footer {
+  background:var(--gold-pale); padding:12px 20px;
+  border-top:1px solid var(--border); font-size:12px;
+  color:var(--navy); font-weight:500; text-align:center;
+}
+.pkg-footer .incl-icon { color:var(--gold); margin-right:4px; }
+
+/* ── TEA BREAK ── */
+.tea-intro {
+  background:var(--white); border:1px solid var(--border);
+  padding:20px 24px; margin-bottom:32px; border-left:4px solid var(--gold);
+}
+.tea-intro h4 { font-family:'Cormorant Garamond',serif; font-size:18px; color:var(--navy); margin-bottom:8px; }
+.accompaniments { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.tag {
+  background:var(--navy); color:var(--white);
+  font-size:11px; padding:3px 10px; border-radius:20px; letter-spacing:0.5px;
+}
+.tag.gold-tag { background:var(--gold); }
+.pastries-grid, .proteins-grid {
+  background:var(--white); border:1px solid var(--border);
+  padding:16px 20px; margin-bottom:20px;
+}
+.pastries-grid h4, .proteins-grid h4 {
+  font-size:11px; letter-spacing:2px; text-transform:uppercase;
+  color:var(--gold); margin-bottom:10px;
+}
+.items-wrap { display:flex; flex-wrap:wrap; gap:6px; }
+.item-chip {
+  background:var(--cream); border:1px solid var(--border);
+  font-size:12px; padding:4px 10px; color:var(--text);
+}
+.fruits-box {
+  background:var(--white); border:1px solid var(--border);
+  padding:16px 20px; margin-bottom:32px;
+}
+.fruits-box h4 { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); margin-bottom:8px; }
+
+/* ── COMPARE TABLE ── */
+.compare-wrap { overflow-x:auto; margin-top:8px; }
+.compare-table { width:100%; border-collapse:collapse; font-size:13px; min-width:600px; }
+.compare-table th {
+  background:var(--navy); color:var(--white);
+  padding:12px 16px; text-align:left;
+  font-weight:500; letter-spacing:0.5px; font-size:12px;
+}
+.compare-table th.gold-head { background:var(--gold); }
+.compare-table td { padding:10px 16px; border-bottom:1px solid var(--border); vertical-align:top; }
+.compare-table tr:nth-child(even) td { background:rgba(245,233,208,0.2); }
+.compare-table .feature-col { font-weight:500; color:var(--navy); width:22%; }
+.check { color:var(--gold); font-weight:bold; }
+.dash { color:#ccc; }
+
+/* ── QR MODAL ── */
+.modal-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(13,31,60,0.7); z-index:1000;
+  align-items:center; justify-content:center;
+}
+.modal-overlay.open { display:flex; }
+.modal-box {
+  background:var(--white); border-radius:4px;
+  padding:36px; max-width:480px; width:90%;
+  box-shadow:0 20px 60px rgba(0,0,0,0.3);
+  position:relative;
+}
+.modal-close {
+  position:absolute; top:12px; right:16px;
+  background:none; border:none; font-size:22px;
+  cursor:pointer; color:var(--muted);
+}
+.modal-close:hover { color:var(--navy); }
+.modal-title {
+  font-family:'Cormorant Garamond',serif;
+  font-size:24px; color:var(--navy); font-weight:300;
+  margin-bottom:4px;
+}
+.modal-sub { font-size:12px; color:var(--muted); margin-bottom:20px; }
+.qr-input-row { display:flex; gap:8px; margin-bottom:16px; }
+.qr-input {
+  flex:1; padding:10px 14px; border:1.5px solid var(--border);
+  border-radius:2px; font-family:'Inter',sans-serif; font-size:13px;
+  outline:none; transition:border 0.2s;
+}
+.qr-input:focus { border-color:var(--gold); }
+.qr-gen-btn {
+  padding:10px 18px; background:var(--navy); color:var(--white);
+  border:none; font-family:'Inter',sans-serif; font-size:12px;
+  font-weight:600; letter-spacing:1px; cursor:pointer;
+  border-radius:2px; transition:background 0.2s; white-space:nowrap;
+}
+.qr-gen-btn:hover { background:var(--gold); }
+.qr-preview {
+  display:flex; flex-direction:column; align-items:center;
+  gap:14px; padding:20px 0 4px;
+}
+#qrcode { border:8px solid var(--white); box-shadow:0 0 0 1px var(--border); }
+.qr-label { font-size:12px; color:var(--muted); text-align:center; }
+.qr-actions { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:8px; }
+.qr-dl-btn {
+  padding:8px 18px; background:var(--gold); color:var(--white);
+  border:none; font-size:11px; font-weight:600; letter-spacing:1px;
+  cursor:pointer; border-radius:2px; transition:background 0.2s;
+}
+.qr-dl-btn:hover { background:var(--navy); }
+.qr-size-row { display:flex; gap:8px; align-items:center; margin-bottom:14px; }
+.qr-size-row label { font-size:12px; color:var(--muted); }
+.qr-size-row select {
+  padding:6px 10px; border:1.5px solid var(--border);
+  border-radius:2px; font-family:'Inter',sans-serif; font-size:12px;
+  outline:none;
+}
+.qr-type-row { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+.qr-type-btn {
+  padding:6px 12px; border:1.5px solid var(--border);
+  background:var(--cream); font-size:11px; font-weight:600;
+  letter-spacing:0.5px; cursor:pointer; border-radius:2px;
+  transition:all 0.15s; color:var(--muted);
+}
+.qr-type-btn.active { background:var(--navy); color:var(--white); border-color:var(--navy); }
+
+/* ── TOAST ── */
+.toast {
+  position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px);
+  background:var(--navy); color:var(--white);
+  padding:12px 24px; border-radius:2px; font-size:13px;
+  box-shadow:0 4px 16px rgba(0,0,0,0.2);
+  transition:transform 0.3s ease; z-index:9999;
+  border-left:4px solid var(--gold);
+}
+.toast.show { transform:translateX(-50%) translateY(0); }
+
+/* ── FOOTER ── */
+footer {
+  background:var(--navy); color:rgba(255,255,255,0.7);
+  text-align:center; padding:32px 20px;
+  font-size:12px; letter-spacing:0.5px; line-height:2;
+}
+footer a { color:var(--gold-light); text-decoration:none; }
+footer .footer-name {
+  font-family:'Cormorant Garamond',serif; font-size:20px;
+  color:var(--white); font-weight:300; letter-spacing:2px; margin-bottom:8px;
+}
+
+/* ── LOADING OVERLAY ── */
+.loading-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(13,31,60,0.6); z-index:2000;
+  align-items:center; justify-content:center; flex-direction:column; gap:16px;
+}
+.loading-overlay.open { display:flex; }
+.spinner {
+  width:44px; height:44px;
+  border:4px solid rgba(184,146,58,0.3);
+  border-top-color:var(--gold);
+  border-radius:50%; animation:spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+.loading-text { color:var(--white); font-size:13px; letter-spacing:1px; }
+
+@media (max-width:600px) {
+  .packages-grid { grid-template-columns:1fr; }
+  .tab-btn { font-size:10px; padding:12px 6px; }
+  .toolbar { padding:8px 12px; }
+  .tb-btn { padding:6px 10px; font-size:10px; }
+}
+
+/* ── PRINT STYLES ── */
+@media print {
+  .toolbar, .tabs, .modal-overlay, .toast, .loading-overlay { display:none !important; }
+  .section { display:block !important; }
+  header { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .pkg-header { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR -->
+<div class="toolbar" id="toolbar">
+  <div class="toolbar-left">
+    <button class="tb-btn" id="editToggleBtn" onclick="toggleEdit()">✏️ Edit Mode</button>
+    <button class="tb-btn" onclick="resetAll()" title="Reset all changes">↩ Reset</button>
+    <button class="tb-btn" onclick="openQR()">📱 QR Code</button>
+  </div>
+  <div class="toolbar-right">
+    <span class="toolbar-label">Export As:</span>
+    <div class="export-wrap">
+      <button class="export-btn" id="exportBtn" onclick="toggleExportMenu()">
+        ⬇ Export / Print <span class="arrow">▼</span>
+      </button>
+      <div class="export-menu" id="exportMenu">
+        <button onclick="exportAs('print')">
+          <span class="fmt-icon">🖨️</span>
+          <div><div class="fmt-label">Print</div><div class="fmt-desc">Print via browser dialog</div></div>
+        </button>
+        <button onclick="exportAs('pdf')">
+          <span class="fmt-icon">📄</span>
+          <div><div class="fmt-label">PDF File</div><div class="fmt-desc">Save as PDF document</div></div>
+        </button>
+        <button onclick="exportAs('jpg')">
+          <span class="fmt-icon">🖼️</span>
+          <div><div class="fmt-label">JPEG Image</div><div class="fmt-desc">High-resolution image</div></div>
+        </button>
+        <button onclick="exportAs('png')">
+          <span class="fmt-icon">📸</span>
+          <div><div class="fmt-label">PNG Image</div><div class="fmt-desc">Transparent background</div></div>
+        </button>
+        <button onclick="exportAs('html')">
+          <span class="fmt-icon">💾</span>
+          <div><div class="fmt-label">Save HTML</div><div class="fmt-desc">Download editable file</div></div>
+        </button>
+        <button onclick="exportAs('csv')">
+          <span class="fmt-icon">📊</span>
+          <div><div class="fmt-label">CSV / Excel</div><div class="fmt-desc">Package data spreadsheet</div></div>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header id="main-header">
+  <div class="header-inner">
+    <div class="hotel-name" contenteditable="false">Gallani Suites · Ibadan</div>
+    <div class="gold-rule"></div>
+    <h1 contenteditable="false">Banquet Menu</h1>
+    <div class="tagline" contenteditable="false">Jericho GRA · Ibadan, Oyo State</div>
+  </div>
+</header>
+
+<!-- NOTICE -->
+<div class="notice">
+  <strong>Important Notice:</strong> <span contenteditable="false">Buffet Menu rate is not negotiable. Different categories have been painstakingly provided for your respective budget.</span> &nbsp;·&nbsp; <em>Thanks.</em>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('overview',this)">Overview</button>
+  <button class="tab-btn" onclick="switchTab('conference',this)">Conference Buffet</button>
+  <button class="tab-btn" onclick="switchTab('buffet',this)">Full Buffet</button>
+  <button class="tab-btn" onclick="switchTab('premium',this)">Premium Buffet</button>
+  <button class="tab-btn" onclick="switchTab('tea',this)">Tea Break</button>
+</div>
+
+<main id="main-content">
+
+<!-- ══ OVERVIEW ══ -->
+<div class="section active" id="section-overview">
+  <div class="section-header">
+    <div class="eyebrow" contenteditable="false">Event Packages</div>
+    <h2 contenteditable="false">Choose Your Package</h2>
+    <p contenteditable="false">All packages are per person (per pax). Minimum guest counts apply per category. Bottle water is inclusive across all packages.</p>
+  </div>
+  <div class="edit-hint">✏️ Click any text to edit it directly</div>
+  <div class="compare-wrap">
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th class="feature-col">Package</th>
+          <th>Category</th>
+          <th>Price / Pax</th>
+          <th>Min. Guests</th>
+          <th>Beverages</th>
+          <th>Desserts</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="feature-col" contenteditable="false">Conference Pkg I</td>
+          <td contenteditable="false">Mini Assisted Buffet</td>
+          <td><strong contenteditable="false">₦12,500</strong></td>
+          <td contenteditable="false">—</td>
+          <td contenteditable="false">Bottle Water</td>
+          <td><span class="dash">—</span></td>
+        </tr>
+        <tr>
+          <td class="feature-col" contenteditable="false">Conference Pkg II</td>
+          <td contenteditable="false">Mini Assisted Buffet</td>
+          <td><strong contenteditable="false">₦15,500</strong></td>
+          <td contenteditable="false">—</td>
+          <td contenteditable="false">Bottle Water</td>
+          <td contenteditable="false"><span class="check">✓</span> Fruit salad + 1 sweet</td>
+        </tr>
+        <tr>
+          <td class="feature-col" contenteditable="false">Silver</td>
+          <td contenteditable="false">Buffet Options</td>
+          <td><strong contenteditable="false">₦18,500</strong></td>
+          <td contenteditable="false">15 pax</td>
+          <td contenteditable="false">Bottle Water</td>
+          <td contenteditable="false"><span class="check">✓</span> Fruit salad + 1 sweet</td>
+        </tr>
+        <tr>
+          <td class="feature-col" contenteditable="false">Gold</td>
+          <td contenteditable="false">Buffet Options</td>
+          <td><strong contenteditable="false">₦20,500</strong></td>
+          <td contenteditable="false">15 pax</td>
+          <td contenteditable="false">Fruit Juice + Water</td>
+          <td contenteditable="false"><span class="check">✓</span> Fruit salad + 2 sweets</td>
+        </tr>
+        <tr>
+          <td class="feature-col" contenteditable="false">Platinum</td>
+          <td contenteditable="false">Premium Buffet</td>
+          <td><strong contenteditable="false">₦25,500</strong></td>
+          <td contenteditable="false">20 pax</td>
+          <td contenteditable="false">Dispense Juice + Water</td>
+          <td contenteditable="false"><span class="check">✓</span> Fruit salad + 2 sweets</td>
+        </tr>
+        <tr>
+          <td class="feature-col" contenteditable="false">Diamond</td>
+          <td contenteditable="false">Premium Buffet</td>
+          <td><strong contenteditable="false">₦35,500</strong></td>
+          <td contenteditable="false">20 pax</td>
+          <td contenteditable="false">Sparkling Wine + Juice + Water</td>
+          <td contenteditable="false"><span class="check">✓</span> Fruit salad + 2 sweets + Dairy</td>
+        </tr>
+        <tr>
+          <td colspan="6" style="background:var(--gold-pale);font-size:11px;color:var(--navy);font-style:italic;padding:8px 16px;" contenteditable="false">
+            ☕ Tea-Break Packages: Silver ₦7,500 · Gold ₦8,500 · Platinum ₦9,500 · Diamond ₦10,500
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══ CONFERENCE ══ -->
+<div class="section" id="section-conference">
+  <div class="section-header">
+    <div class="eyebrow" contenteditable="false">Mini Assisted Buffet</div>
+    <h2 contenteditable="false">Conference Packages</h2>
+    <p contenteditable="false">Ideal for corporate meetings, training sessions, and seminars. Bottle water inclusive on all packages.</p>
+  </div>
+  <div class="edit-hint">✏️ Click any text to edit it directly</div>
+  <div class="packages-grid">
+    <div class="pkg-card">
+      <div class="pkg-header">
+        <div class="tier" contenteditable="false">Mini Assisted Buffet</div>
+        <h3 contenteditable="false">Conference Package I</h3>
+        <div class="price-badge" contenteditable="false">₦12,500 <span style="font-size:12px;font-weight:400;">/ pax</span></div>
+        <div class="price-note" contenteditable="false">Bottle Water Inclusive</div>
+      </div>
+      <div class="pkg-body">
+        <div class="course-block">
+          <div class="course-label">Salad</div>
+          <ul>
+            <li><span class="choice-count" contenteditable="false">1</span> <span contenteditable="false">Choice of salad</span></li>
+          </ul>
+          <div class="sub-note" contenteditable="false">Condiments &amp; Dressings</div>
+        </div>
+        <div class="course-block">
+          <div class="course-label">Main Course</div>
+          <ul>
+            <li><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">Starch / Grains: Rice (continental or local), Pasta — with Seasonal Veg. or Plantain</span></li>
+            <li><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">Protein: Chicken / Fish / Assorted Meat / Beef</span></li>
+            <li><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">Nigerian Soup: Egusi / Efo Riro / Okro / Bitter Leaf / Ogbono / Ewedu &amp; Gbegiri</span></li>
+            <li><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">Swallow: Semovita / Poundo Yam / Eba / Wheat / Amala</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="pkg-footer"><span class="incl-icon">💧</span> <span contenteditable="false">Bottle Water Inclusive</span></div>
+    </div>
+
+    <div class="pkg-card featured">
+      <div class="pkg-header">
+        <div class="tier" contenteditable="false">Mini Assisted Buffet</div>
+        <h3 contenteditable="false">Conference Package II</h3>
+        <div class="price-badge" contenteditable="false">₦15,500 <span style="font-size:12px;font-weight:400;">/ pax</span></div>
+        <div class="price-note" contenteditable="false">Bottle Water Inclusive</div>
+      </div>
+      <div class="pkg-body">
+        <div class="course-block">
+          <div class="course-label">Salad</div>
+          <ul>
+            <li><span class="choice-count" contenteditable="false">1</span> <span contenteditable="false">Choice of salad</span></li>
+          </ul>
+          <div class="sub-note" contenteditable="false">Condiments &amp; Dressings</div>
+        </div>
+        <div class="course-block">
+          <div class="course-label">Main Course</div>
+          <ul>
+            <li><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">Starch / Grains: Rice (continental or local), Pasta — with Seasonal Veg. or Plantain</span></li>
+            <li><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">Protein: Chicken / Fish / Assorted Meat / Beef</span></li>
+            <li><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">Nigerian Soup: Egusi / Efo Riro / Okro / Bitter Leaf / Ogbono / Ewedu &amp; Gbegiri</span></li>
+            <li><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">Swallow: Semovita / Poundo Yam / Eba / Wheat / Amala</span></li>
+          </ul>
+        </div>
+        <div class="course-block">
+          <div class="course-label">Desserts</div>
+          <ul>
+            <li><span contenteditable="false">Tropical Fruit Salad / Single Fruit</span></li>
+            <li><span class="choice-count" contenteditable="false">1</span> <span contenteditable="false">Sweet: Muffins / Cookies / Swiss Roll</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="pkg-footer"><span class="incl-icon">💧</span> <span contenteditable="false">Bottle Water Inclusive</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ BUFFET ══ -->
+<div class="section" id="section-buffet">
+  <div class="section-header">
+    <div class="eyebrow" contenteditable="false">Buffet Options</div>
+    <h2 contenteditable="false">Silver &amp; Gold Buffet</h2>
+    <p contenteditable="false">Full buffet experience with a minimum of 15 guests per package. Elevate your event with our curated Nigerian and continental menu.</p>
+  </div>
+  <div class="edit-hint">✏️ Click any text to edit it directly</div>
+  <div class="packages-grid">
+    <div class="pkg-card">
+      <div class="pkg-header">
+        <div class="tier" contenteditable="false">Buffet Options · 15 pax min.</div>
+        <h3 contenteditable="false">Silver</h3>
+        <div class="price-badge" contenteditable="false">₦18,500 <span style="font-size:12px;font-weight:400;">/ pax</span></div>
+        <div class="price-note" contenteditable="false">Bottle Water Inclusive</div>
+      </div>
+      <div class="pkg-body">
+        <div class="course-block">
+          <div class="course-label">Soup</div>
+          <ul><li><span class="choice-count" contenteditable="false">1</span> <span contenteditable="false">Nigerian Pepper Soup: Fish / Assorted / Chicken</span></li></ul>
+        </div>
+        <div class="course-block">
+          <div class="course-label">Salad</div>
+          <ul><li><span class="choice-count" contenteditable="false">1</span> <span contenteditable="false">Choice of salad</span></li></ul>
+          <div class="sub-note" contenteditable="false">Condiments &amp; Dressings</div>
+        </div>
+        <div class="course-block">
+          <div class="course-label">Main Course</div>
+          <ul>
+            <li><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">Starch / Grains: Rice (continental or local), Pasta — with Seasonal Veg. or Plantain</span></li>
+            <li><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">Protein: Chicken / Fish / Assorted Meat / Beef</span></li>
+            <li><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">Nigerian Soup: Egusi / Efo Riro / Okro / Bitter Leaf / Ogbono / Ewedu &amp; Gbegiri</span></li>
+            <li><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">Swallow: Semovita / Poundo Yam / Eba / Wheat / Amala</span></li>
+          </ul>
+        </div>
+        <div class="course-block">
+          <div class="course-label">Desserts</div>
+          <ul>
+            <li><span contenteditable="false">Tropical Fruit Salad</span></li>
+            <li><span class="choice-count" contenteditable="false">1</span> <span contenteditable="false">Sweet: Muffins / Cookies / Swiss Roll etc.</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="pkg-footer"><span class="incl-icon">💧</span> <span contenteditable="false">Bottle Water Inclusive</span></div>
+    </div>
+
+    <div class="pkg-card featured">
+      <div class="pkg-header">
+        <div class="tier" contenteditable="false">Buffet Options · 15 pax min.</div>
+        <h3 contenteditable="false">Gold</h3>
+        <div class="price-badge" contenteditable="false">₦20,500 <span style="font-size:12px;font-weight:400;">/ pax</span></div>
+        <div class="price-note" contenteditable="false">Fruit Juice &amp; Bottle Water Inclusive</div>
+      </div>
+      <div class="pkg-body">
+        <div class="course-block">
+          <div class="course-label">Soup</div>
+          <ul>
+            <li><span class="choice-count" contenteditable="false">1</span> <span contenteditable="false">Nigerian Pepper Soup: Fish / Assorted / Goat Meat / Chicken</span></li>
+            <li><span class="choice-count" contenteditable="false">1</span> <span contenteditable="false">Continental Soup (Optional)</span></li>
+          </ul>
+        </div>
+        <div class="course-block">
+          <div class="course-label">Salad</div>
+          <ul><li><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">Choices of salad</span></li></ul>
+          <div class="sub-note" contenteditable="false">Condiments &amp; Dressings</div>
+        </div>
+        <div class="course-block">
+          <div class="course-label">Main Course</div>
+          <ul>
+            <li><span class="choice-count" contenteditable="false">3</span> <span contenteditable="false">Starch / Grains: Rice (continental or local), Pasta, Potato — with Seasonal Veg., Moimoi or Plantain</span></li>
+            <li><span class="choice-count" contenteditable="false">3</span> <span contenteditable="false">Protein: Chicken / Turkey / Fish / Assorted Meat / Beef / Goat Meat</span></li>
+            <li><span class="choice-count" contenteditable="false">3</span> <span contenteditable="false">Nigerian Soup: Egusi / Edikaikong / Efo Riro / Okro / Bitter Leaf / Ogbono / Ewedu &amp; Gbegiri</span></li>
+            <li><span class="choice-count" contenteditable="false">3</span> <span contenteditable="false">Swallow: Semovita / Poundo Yam / Eba / Wheat / Amala</span></li>
+          </ul>
+        </div>
+        <div class="course-block">
+          <div class="course-label">Desserts</div>
+          <ul>
+            <li><span contenteditable="false">Tropical Fruit Salad</span></li>
+            <li><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">Sweets: Muffins / Cookies / Swiss Roll etc.</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="pkg-footer"><span class="incl-icon">🥤</span> <span contenteditable="false">Fruit Juice &amp; Bottle Water Inclusive</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PREMIUM ══ -->
+<div class="section" id="section-premium">
+  <div class="section-header">
+    <div class="eyebrow" contenteditable="false">Premium Buffet Options</div>
+    <h2 contenteditable="false">Platinum &amp; Diamond</h2>
+    <p contenteditable="false">Our most distinguished event experience. Minimum 20 guests. Perfect for weddings, gala dinners, and corporate banquets.</p>
+  </div>
+  <div class="edit-hint">✏️ Click any text to edit it directly</div>
+  <div class="packages-grid">
+    <div class="pkg-card">
+      <div class="pkg-header">
+        <div class="tier" contenteditable="false">Premium Buffet · 20 pax min.</div>
+        <h3 contenteditable="false">Platinum</h3>
+        <div class="price-badge" contenteditable="false">₦25,500 <span style="font-size:12px;font-weight:400;">/ pax</span></div>
+        <div class="price-note" contenteditable="false">Dispense Juice &amp; Water Inclusive</div>
+      </div>
+      <div class="pkg-body">
+        <div class="course-block">
+          <div class="course-label">Appetizer / Soup</div>
+          <ul>
+            <li><span class="choice-count" contenteditable="false">1</span> <span contenteditable="false">Snack / Small chop with Peppered or Spicy Protein</span></li>
+            <li><span contenteditable="false">Nigerian Pepper Soup — </span><span class="choice-count" contenteditable="false">1</span> <span contenteditable="false">choice: Fish / Goat Meat / Chicken</span></li>
+            <li><span contenteditable="false">Continental Soup (Optional)</span></li>
+          </ul>
+        </div>
+        <div class="course-block">
+          <div class="course-label">Salad</div>
+          <ul><li><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">Choices of salad</span></li></ul>
+          <div class="sub-note" contenteditable="false">Condiments &amp; Dressings</div>
+        </div>
+        <div class="course-block">
+          <div class="course-label">Main Course</div>
+          <ul>
+            <li><span class="choice-count" contenteditable="false">3</span> <span contenteditable="false">Starch / Grains: Rice (continental or local), Pasta, Porridge, Potato — with Seasonal Veg., Beans, Moimoi or Plantain</span></li>
+            <li><span class="choice-count" contenteditable="false">3</span> <span contenteditable="false">Protein: Chicken / Turkey / Fish / Assorted Meat / Beef / Goat Meat</span></li>
+            <li><span class="choice-count" contenteditable="false">3</span> <span contenteditable="false">Nigerian Soup: Egusi / Edikaikong / Efo Riro / Okro / Bitter Leaf / Ogbono / Ewedu &amp; Gbegiri</span></li>
+            <li><span class="choice-count" contenteditable="false">3</span> <span contenteditable="false">Swallow: Poundo / Pounded Yam / Semolina / Eba / Wheat / Amala</span></li>
+          </ul>
+        </div>
+        <div class="course-block">
+          <div class="course-label">Desserts</div>
+          <ul>
+            <li><span contenteditable="false">Tropical Fruit Salad</span></li>
+            <li><span contenteditable="false">Fruit Platter &amp; Single Fruits</span></li>
+            <li><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">Sweets: Cake / Cream Caramel etc.</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="pkg-footer"><span class="incl-icon">🥤</span> <span contenteditable="false">Dispense Juice &amp; Water Inclusive</span></div>
+    </div>
+
+    <div class="pkg-card featured">
+      <div class="pkg-header">
+        <div class="tier" contenteditable="false">Premium Buffet · 20 pax min.</div>
+        <h3 contenteditable="false">Diamond</h3>
+        <div class="price-badge" contenteditable="false">₦35,500 <span style="font-size:12px;font-weight:400;">/ pax</span></div>
+        <div class="price-note" contenteditable="false">Sparkling Wine, Juice &amp; Water Inclusive</div>
+      </div>
+      <div class="pkg-body">
+        <div class="course-block">
+          <div class="course-label">Appetizer / Soup</div>
+          <ul>
+            <li><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">Snacks / Small chops with Peppered or Spicy Protein</span></li>
+            <li><span contenteditable="false">Nigerian Pepper Soup — </span><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">choices: Fish / Assorted / Goat Meat / Chicken</span></li>
+            <li><span contenteditable="false">Continental Soup (Optional)</span></li>
+          </ul>
+        </div>
+        <div class="course-block">
+          <div class="course-label">Salad</div>
+          <ul><li><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">Choices of salad</span></li></ul>
+          <div class="sub-note" contenteditable="false">Condiments &amp; Dressings</div>
+        </div>
+        <div class="course-block">
+          <div class="course-label">Main Course</div>
+          <ul>
+            <li><span class="choice-count" contenteditable="false">4</span> <span contenteditable="false">Starch / Grains: Rice (continental or local), Pasta, Porridge, Potato — with Seasonal Veg., Beans, Moimoi or Plantain</span></li>
+            <li><span class="choice-count" contenteditable="false">4</span> <span contenteditable="false">Protein &amp; Seafood: Chicken / Turkey / Fish / Assorted Meat / Beef / Goat Meat / Bush Meat / Any Seafood</span></li>
+            <li><span class="choice-count" contenteditable="false">4</span> <span contenteditable="false">Nigerian Soup: Egusi / Edikaikong / Efo Riro / Okro / Bitter Leaf / Ogbono / Ewedu &amp; Gbegiri / Ortom / Black Soup</span></li>
+            <li><span class="choice-count" contenteditable="false">4</span> <span contenteditable="false">Swallow: Pounded Yam / Semolina / Eba / Wheat / Amala</span></li>
+          </ul>
+        </div>
+        <div class="course-block">
+          <div class="course-label">Desserts</div>
+          <ul>
+            <li><span contenteditable="false">Tropical Fruit Salad</span></li>
+            <li><span contenteditable="false">Single Fruits</span></li>
+            <li><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">Sweets: Cake / Cream Caramel etc.</span></li>
+            <li><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">Dairy: Yoghurt / Ice Cream</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="pkg-footer"><span class="incl-icon">🍾</span> <span contenteditable="false">Sparkling Wine, Dispense Juice &amp; Water Inclusive</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TEA BREAK ══ -->
+<div class="section" id="section-tea">
+  <div class="section-header">
+    <div class="eyebrow" contenteditable="false">Tea-Break Options</div>
+    <h2 contenteditable="false">Tea Break Packages</h2>
+    <p contenteditable="false">All tea break options are accompanied by assorted tea, hot chocolate, coffee, milk, sugar, honey, and bottle water.</p>
+  </div>
+  <div class="edit-hint">✏️ Click any text to edit it directly</div>
+  <div class="tea-intro">
+    <h4 contenteditable="false">All Tea Break Packages Include:</h4>
+    <div class="accompaniments">
+      <span class="tag gold-tag" contenteditable="false">Assorted Tea</span>
+      <span class="tag gold-tag" contenteditable="false">Hot Chocolate</span>
+      <span class="tag gold-tag" contenteditable="false">Coffee</span>
+      <span class="tag" contenteditable="false">Milk</span>
+      <span class="tag" contenteditable="false">Sugar</span>
+      <span class="tag" contenteditable="false">Honey</span>
+      <span class="tag" contenteditable="false">Bottle Water</span>
+    </div>
+  </div>
+  <div class="pastries-grid">
+    <h4 contenteditable="false">Pastries Menu (choose from based on tier)</h4>
+    <div class="items-wrap">
+      <span class="item-chip" contenteditable="false">Spring Rolls</span><span class="item-chip" contenteditable="false">Samosa</span>
+      <span class="item-chip" contenteditable="false">Doughnuts</span><span class="item-chip" contenteditable="false">Cupcakes</span>
+      <span class="item-chip" contenteditable="false">Mini Chicken Pie</span><span class="item-chip" contenteditable="false">Mini Meat Pie</span>
+      <span class="item-chip" contenteditable="false">Puff Pastry</span><span class="item-chip" contenteditable="false">Croissants</span>
+      <span class="item-chip" contenteditable="false">Danish Pastry</span><span class="item-chip" contenteditable="false">Hard Rolls</span>
+      <span class="item-chip" contenteditable="false">Fish Rolls</span><span class="item-chip" contenteditable="false">Egg Roll</span>
+      <span class="item-chip" contenteditable="false">Sausage Roll</span><span class="item-chip" contenteditable="false">Swiss Roll</span>
+      <span class="item-chip" contenteditable="false">Sandwich</span><span class="item-chip" contenteditable="false">Mini Burger</span>
+      <span class="item-chip" contenteditable="false">Mini Pizzas</span><span class="item-chip" contenteditable="false">Cinnamon Roll</span>
+      <span class="item-chip" contenteditable="false">Scone</span>
+    </div>
+  </div>
+  <div class="proteins-grid">
+    <h4 contenteditable="false">Proteins Menu (Diamond tier only)</h4>
+    <div class="items-wrap">
+      <span class="item-chip" contenteditable="false">Spicy Chicken Wings</span><span class="item-chip" contenteditable="false">Tomato Meatball</span>
+      <span class="item-chip" contenteditable="false">Peppered Gizzard</span><span class="item-chip" contenteditable="false">Beef Kebab</span>
+      <span class="item-chip" contenteditable="false">Chicken Kebab</span><span class="item-chip" contenteditable="false">Battered Fish</span>
+      <span class="item-chip" contenteditable="false">Breaded Chicken</span><span class="item-chip" contenteditable="false">Spicy Fish Finger</span>
+      <span class="item-chip" contenteditable="false">Chicken Suya</span><span class="item-chip" contenteditable="false">Fish Tempura</span>
+      <span class="item-chip" contenteditable="false">Peppered Ponmo</span><span class="item-chip" contenteditable="false">Chicken Nuggets</span>
+    </div>
+  </div>
+  <div class="fruits-box">
+    <h4 contenteditable="false">Fruits Available</h4>
+    <div class="items-wrap">
+      <span class="item-chip" contenteditable="false">Apple</span><span class="item-chip" contenteditable="false">Banana</span>
+      <span class="item-chip" contenteditable="false">Pineapple</span><span class="item-chip" contenteditable="false">Watermelon</span>
+      <span class="item-chip" contenteditable="false">Orange</span><span class="item-chip" contenteditable="false">+ Seasonal Fruits</span>
+    </div>
+  </div>
+  <div class="packages-grid">
+    <div class="pkg-card">
+      <div class="pkg-header">
+        <div class="tier" contenteditable="false">Tea Break</div>
+        <h3 contenteditable="false">Silver</h3>
+        <div class="price-badge" contenteditable="false">₦7,500 <span style="font-size:12px;font-weight:400;">/ pax</span></div>
+      </div>
+      <div class="pkg-body">
+        <div class="course-block">
+          <div class="course-label">Selections</div>
+          <ul>
+            <li><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">Choice of Pastry</span></li>
+            <li><span class="choice-count" contenteditable="false">1</span> <span contenteditable="false">Protein</span></li>
+            <li><span class="choice-count" contenteditable="false">1</span> <span contenteditable="false">Fruit Slice</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="pkg-footer"><span class="incl-icon">☕</span> <span contenteditable="false">Tea &amp; Beverages Inclusive</span></div>
+    </div>
+    <div class="pkg-card">
+      <div class="pkg-header">
+        <div class="tier" contenteditable="false">Tea Break</div>
+        <h3 contenteditable="false">Gold</h3>
+        <div class="price-badge" contenteditable="false">₦8,500 <span style="font-size:12px;font-weight:400;">/ pax</span></div>
+      </div>
+      <div class="pkg-body">
+        <div class="course-block">
+          <div class="course-label">Selections</div>
+          <ul>
+            <li><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">Choice of Pastry</span></li>
+            <li><span class="choice-count" contenteditable="false">1</span> <span contenteditable="false">Protein</span></li>
+            <li><span class="choice-count" contenteditable="false">1</span> <span contenteditable="false">Choice of Fruits</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="pkg-footer"><span class="incl-icon">☕</span> <span contenteditable="false">Tea &amp; Beverages Inclusive</span></div>
+    </div>
+    <div class="pkg-card">
+      <div class="pkg-header">
+        <div class="tier" contenteditable="false">Tea Break</div>
+        <h3 contenteditable="false">Platinum</h3>
+        <div class="price-badge" contenteditable="false">₦9,500 <span style="font-size:12px;font-weight:400;">/ pax</span></div>
+      </div>
+      <div class="pkg-body">
+        <div class="course-block">
+          <div class="course-label">Selections</div>
+          <ul>
+            <li><span class="choice-count" contenteditable="false">2</span> <span contenteditable="false">Choices of Pastry</span></li>
+            <li><span class="choice-count" contenteditable="false">1</span> <span contenteditable="false">Protein</span></li>
+            <li><span class="choice-count" contenteditable="false">1</span> <span contenteditable="false">Choice of Fruits</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="pkg-footer"><span class="incl-icon">☕</span> <span contenteditable="false">Tea &amp; Beverages Inclusive</span></div>
+    </div>
+    <div class="pkg-card featured">
+      <div class="pkg-header">
+        <div class="tier" contenteditable="false">Tea Break</div>
+        <h3 contenteditable="false">Diamond</h3>
+        <div class="price-badge" contenteditable="false">₦10,500 <span style="font-size:12px;font-weight:400;">/ pax</span></div>
+      </div>
+      <div class="pkg-body">
+        <div class="course-block">
+          <div class="course-label">Selections</div>
+          <ul>
+            <li><span class="choice-count" contenteditable="false">3</span> <span contenteditable="false">Choices of Pastry</span></li>
+            <li><span class="choice-count" contenteditable="false">1</span> <span contenteditable="false">Protein</span></li>
+            <li><span contenteditable="false">Assorted Fruits</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="pkg-footer"><span class="incl-icon">☕</span> <span contenteditable="false">Tea &amp; Beverages Inclusive</span></div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-name" contenteditable="false">Gallani Suites, Ibadan</div>
+  <span contenteditable="false">Abel Awe Close, off Oladele Ajao Street, Jericho GRA, Ibadan, Oyo State</span><br>
+  <a href="tel:+2347055567775" contenteditable="false">+234 705 556 7775</a> &nbsp;·&nbsp;
+  <a href="tel:+2347080002022" contenteditable="false">+234 708 000 2022</a> &nbsp;·&nbsp;
+  <a href="mailto:gallanisuites@gmail.com" contenteditable="false">gallanisuites@gmail.com</a><br><br>
+  <span style="font-size:11px;color:rgba(255,255,255,0.35);" contenteditable="false">Buffet Menu rates are not negotiable. All prices are per person (per pax). © Gallani Suites</span>
+</footer>
+
+<!-- QR MODAL -->
+<div class="modal-overlay" id="qrModal" onclick="closeQROnOverlay(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeQR()">✕</button>
+    <div class="modal-title">QR Code Generator</div>
+    <div class="modal-sub">Generate a scannable QR code for any URL, menu link, or text</div>
+
+    <div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Quick Type</div>
+    <div class="qr-type-row">
+      <button class="qr-type-btn active" onclick="setQRType('url',this)">🔗 URL</button>
+      <button class="qr-type-btn" onclick="setQRType('email',this)">📧 Email</button>
+      <button class="qr-type-btn" onclick="setQRType('phone',this)">📞 Phone</button>
+      <button class="qr-type-btn" onclick="setQRType('text',this)">📝 Text</button>
+      <button class="qr-type-btn" onclick="setQRType('wifi',this)">📶 WiFi</button>
+    </div>
+
+    <div class="qr-input-row">
+      <input class="qr-input" id="qrInput" type="text" placeholder="Enter URL, text, or link…" value="https://gallanisuites.com">
+      <button class="qr-gen-btn" onclick="generateQR()">Generate</button>
+    </div>
+
+    <div class="qr-size-row">
+      <label>Size:</label>
+      <select id="qrSize" onchange="generateQR()">
+        <option value="128">128 × 128 (Small)</option>
+        <option value="200" selected>200 × 200 (Medium)</option>
+        <option value="300">300 × 300 (Large)</option>
+        <option value="400">400 × 400 (Extra Large)</option>
+      </select>
+    </div>
+
+    <div class="qr-preview" id="qrPreview" style="display:none;">
+      <div id="qrcode"></div>
+      <div class="qr-label" id="qrLabel"></div>
+      <div class="qr-actions">
+        <button class="qr-dl-btn" onclick="downloadQR('png')">⬇ Download PNG</button>
+        <button class="qr-dl-btn" onclick="downloadQR('svg')" style="background:var(--navy);">⬇ Download SVG</button>
+        <button class="qr-dl-btn" onclick="copyQRToClipboard()" style="background:var(--muted);">📋 Copy Image</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">Preparing export…</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── EDIT MODE ──
+let editMode = false;
+function toggleEdit() {
+  editMode = !editMode;
+  document.body.classList.toggle('edit-mode', editMode);
+  const btn = document.getElementById('editToggleBtn');
+  btn.classList.toggle('active-edit', editMode);
+  btn.textContent = editMode ? '✅ Editing On' : '✏️ Edit Mode';
+  document.querySelectorAll('[contenteditable]').forEach(el => {
+    el.contentEditable = editMode ? 'true' : 'false';
+  });
+  if (editMode) showToast('Edit mode ON — click any text to modify it');
+  else showToast('Edit mode OFF — changes saved in this session');
+}
+
+function resetAll() {
+  if (!confirm('Reset all edits and reload original content?')) return;
+  location.reload();
+}
+
+// ── TABS ──
+function switchTab(tab, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('section-' + tab).classList.add('active');
+  btn.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── EXPORT DROPDOWN ──
+function toggleExportMenu() {
+  const menu = document.getElementById('exportMenu');
+  const btn = document.getElementById('exportBtn');
+  menu.classList.toggle('open');
+  btn.classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.export-wrap')) {
+    document.getElementById('exportMenu').classList.remove('open');
+    document.getElementById('exportBtn').classList.remove('open');
+  }
+});
+
+async function exportAs(type) {
+  document.getElementById('exportMenu').classList.remove('open');
+  document.getElementById('exportBtn').classList.remove('open');
+
+  // Show all sections for full-page export
+  const sections = document.querySelectorAll('.section');
+  const toolbar = document.getElementById('toolbar');
+  const tabs = document.querySelector('.tabs');
+
+  if (type === 'print') {
+    sections.forEach(s => s.style.display = 'block');
+    window.print();
+    setTimeout(() => sections.forEach(s => { s.style.display = ''; }), 500);
+    return;
+  }
+
+  if (type === 'html') {
+    const blob = new Blob([document.documentElement.outerHTML], {type:'text/html'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'gallani-banquet-menu.html';
+    a.click();
+    showToast('HTML file downloaded');
+    return;
+  }
+
+  if (type === 'csv') {
+    const rows = [['Package','Category','Price (₦/pax)','Min Guests','Beverages','Desserts']];
+    const tableRows = document.querySelectorAll('.compare-table tbody tr');
+    tableRows.forEach(tr => {
+      const cells = tr.querySelectorAll('td');
+      if (cells.length >= 5) {
+        rows.push(Array.from(cells).map(c => c.innerText.replace(/\n/g,' ').trim()));
+      }
+    });
+    const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'gallani-banquet-packages.csv';
+    a.click();
+    showToast('CSV file downloaded — open in Excel');
+    return;
+  }
+
+  if (type === 'pdf' || type === 'jpg' || type === 'png') {
+    showLoading(type === 'pdf' ? 'Generating PDF…' : 'Rendering image…');
+    // Temporarily show all sections
+    sections.forEach(s => { s.dataset.wasHidden = s.style.display; s.style.display = 'block'; });
+    toolbar.style.display = 'none';
+    tabs.style.position = 'relative';
+    tabs.style.top = '0';
+
+    await new Promise(r => setTimeout(r, 200));
+    try {
+      const canvas = await html2canvas(document.body, {
+        scale: 2, useCORS: true, allowTaint: true,
+        backgroundColor: '#faf7f2',
+        ignoreElements: el => el.id === 'loadingOverlay' || el.classList.contains('modal-overlay') || el.classList.contains('toast')
+      });
+
+      if (type === 'pdf') {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p','mm','a4');
+        const imgW = 210; const imgH = (canvas.height * imgW) / canvas.width;
+        let y = 0; const pageH = 297;
+        while (y < imgH) {
+          if (y > 0) pdf.addPage();
+          pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',0,-y,imgW,imgH);
+          y += pageH;
+        }
+        pdf.save('gallani-banquet-menu.pdf');
+        showToast('PDF downloaded successfully');
+      } else {
+        const mime = type === 'jpg' ? 'image/jpeg' : 'image/png';
+        const q = type === 'jpg' ? 0.95 : 1.0;
+        const a = document.createElement('a');
+        a.href = canvas.toDataURL(mime, q);
+        a.download = `gallani-banquet-menu.${type}`;
+        a.click();
+        showToast(`${type.toUpperCase()} image downloaded`);
+      }
+    } catch(e) {
+      showToast('Export failed — try Print instead');
+    }
+    sections.forEach(s => { s.style.display = s.dataset.wasHidden || ''; });
+    toolbar.style.display = '';
+    tabs.style.position = 'sticky';
+    tabs.style.top = '52px';
+    hideLoading();
+  }
+}
+
+// ── QR CODE ──
+let qrInstance = null;
+let currentQRType = 'url';
+
+function openQR() {
+  document.getElementById('qrModal').classList.add('open');
+}
+function closeQR() {
+  document.getElementById('qrModal').classList.remove('open');
+}
+function closeQROnOverlay(e) {
+  if (e.target === document.getElementById('qrModal')) closeQR();
+}
+
+function setQRType(type, btn) {
+  currentQRType = type;
+  document.querySelectorAll('.qr-type-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const input = document.getElementById('qrInput');
+  const placeholders = {
+    url: 'https://gallanisuites.com',
+    email: 'mailto:gallanisuites@gmail.com',
+    phone: 'tel:+2347055567775',
+    text: 'Gallani Suites Banquet Menu — Jericho GRA, Ibadan',
+    wifi: 'WIFI:S:GallaniSuites;T:WPA;P:password123;;'
+  };
+  input.placeholder = placeholders[type] || '';
+  if (type === 'email') input.value = 'mailto:gallanisuites@gmail.com';
+  else if (type === 'phone') input.value = 'tel:+2347055567775';
+  else if (type === 'wifi') input.value = 'WIFI:S:GallaniSuites_WiFi;T:WPA;P:yourpassword;;';
+  else if (type === 'url') input.value = 'https://gallanisuites.com';
+  else input.value = '';
+}
+
+function generateQR() {
+  const text = document.getElementById('qrInput').value.trim();
+  if (!text) { showToast('Please enter text or URL first'); return; }
+  const size = parseInt(document.getElementById('qrSize').value);
+  const container = document.getElementById('qrcode');
+  container.innerHTML = '';
+  if (qrInstance) { qrInstance = null; }
+  qrInstance = new QRCode(container, {
+    text: text,
+    width: size,
+    height: size,
+    colorDark: '#0d1f3c',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+  document.getElementById('qrLabel').textContent = text.length > 60 ? text.substring(0,60)+'…' : text;
+  document.getElementById('qrPreview').style.display = 'flex';
+  showToast('QR Code generated!');
+}
+
+function downloadQR(fmt) {
+  const canvas = document.querySelector('#qrcode canvas');
+  const img = document.querySelector('#qrcode img');
+  if (fmt === 'svg') {
+    if (img) {
+      const a = document.createElement('a');
+      a.href = img.src;
+      a.download = 'gallani-qrcode.png';
+      a.click();
+    }
+    showToast('QR Code downloaded');
+    return;
+  }
+  if (canvas) {
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = 'gallani-qrcode.png';
+    a.click();
+    showToast('QR Code PNG downloaded');
+  } else if (img) {
+    const a = document.createElement('a');
+    a.href = img.src;
+    a.download = 'gallani-qrcode.png';
+    a.click();
+    showToast('QR Code downloaded');
+  }
+}
+
+async function copyQRToClipboard() {
+  const canvas = document.querySelector('#qrcode canvas');
+  if (canvas) {
+    canvas.toBlob(async (blob) => {
+      try {
+        await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
+        showToast('QR Code copied to clipboard');
+      } catch(e) {
+        showToast('Copy not supported — use Download instead');
+      }
+    });
+  }
+}
+
+// ── TOAST ──
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ── LOADING ──
+function showLoading(msg) {
+  document.getElementById('loadingText').textContent = msg || 'Processing…';
+  document.getElementById('loadingOverlay').classList.add('open');
+}
+function hideLoading() {
+  document.getElementById('loadingOverlay').classList.remove('open');
+}
+
+// Auto-generate QR on modal open
+document.getElementById('qrModal').addEventListener('transitionend', function() {});
+window.addEventListener('load', function() {
+  // pre-warm QR library
+});
+</script>
+</body>
+</html>
